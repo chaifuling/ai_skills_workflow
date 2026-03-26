@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceMembers WorkspaceMember[]
+  roles            RoleModel[]
+  workflows        Workflow[]
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members    WorkspaceMember[]
+  roles      RoleModel[]
+  workflows  Workflow[]
+  mcpServers MCPServer[]
+}
+
+model WorkspaceMember {
+  id          String    @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        MemberRole @default(MEMBER)
+  createdAt   DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+// ─── Role Model ───────────────────────────────────────────────────────────────
+
+model RoleModel {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  domain       String
+  avatar       String?
+  systemPrompt String   @db.Text
+  modelConfig  Json
+  skills       String[]
+  mcpServers   String[]
+  knowledgeBases String[]
+  memory       Json     @default("{\"windowSize\":20,\"longTerm\":false}")
+  guardrails   Json     @default("{\"topicBlacklist\":[],\"safeMode\":true}")
+  version      String   @default("1.0.0")
+  isPublic     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdById String
+  workspaceId String
+
+  createdBy User      @relation(fields: [createdById], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sessions ConversationSession[]
+}
+
+model ConversationSession {
+  id        String   @id @default(cuid())
+  roleId    String
+  messages  Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  role RoleModel @relation(fields: [roleId], references: [id], onDelete: Cascade)
+}
+
+// ─── Skill ────────────────────────────────────────────────────────────────────
+
+model Skill {
+  id           String   @id @default(cuid())
+  name         String
+  description  String
+  category     String
+  version      String
+  author       String
+  tags         String[]
+  rating       Float    @default(0)
+  installCount Int      @default(0)
+  inputSchema  Json
+  outputSchema Json
+  runtime      String
+  manifest     Json
+  isPublished  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── MCP ──────────────────────────────────────────────────────────────────────
+
+model MCPServer {
+  id          String   @id @default(cuid())
+  displayName String
+  transport   String
+  command     String?
+  url         String?
+  envConfig   Json?
+  status      String   @default("disconnected")
+  tools       Json?
+  workspaceId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// ─── Workflow ─────────────────────────────────────────────────────────────────
+
+model Workflow {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("draft")
+  nodes       Json     @default("[]")
+  edges       Json     @default("[]")
+  variables   Json     @default("[]")
+  version     String   @default("1.0.0")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdById String
+  workspaceId String
+
+  createdBy  User                @relation(fields: [createdById], references: [id])
+  workspace  Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  executions WorkflowExecution[]
+}
+
+// ─── Execution ────────────────────────────────────────────────────────────────
+
+model WorkflowExecution {
+  id         String    @id @default(cuid())
+  workflowId String
+  status     String    @default("pending")
+  trigger    String    @default("manual")
+  input      Json?
+  output     Json?
+  error      String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  workflow       Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  nodeExecutions NodeExecution[]
+}
+
+model NodeExecution {
+  id          String    @id @default(cuid())
+  executionId String
+  nodeId      String
+  status      String    @default("pending")
+  input       Json?
+  output      Json?
+  error       String?
+  logs        String[]
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  execution WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+}

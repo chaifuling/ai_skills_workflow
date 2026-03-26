@@ -1,0 +1,45 @@
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# build outputs
+dist
+.next
+build
+out
+
+# turbo
+.turbo
+
+# env files
+.env
+.env.local
+.env.*.local
+
+# editor
+.DS_Store
+.vscode
+*.swp
+*.swo
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# python
+__pycache__
+*.py[cod]
+*$py.class
+*.egg-info
+.venv
+venv
+.pytest_cache
+
+# docker
+.docker-data
+
+# misc
+.cache
+*.tsbuildinfo
